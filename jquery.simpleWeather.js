@@ -23,14 +23,25 @@
       var now = new Date();
       var weatherUrl = 'https://query.yahooapis.com/v1/public/yql?format=json&rnd='+now.getFullYear()+now.getMonth()+now.getDay()+now.getHours()+'&diagnostics=true&callback=?&q=';
       if(options.location !== '') {
-        weatherUrl += 'select * from weather.forecast where woeid in (select woeid from geo.placefinder where text="'+options.location+'" and gflags="R" limit 1) and u="'+options.unit+'"';
-      } else if(options.woeid !== '') {
+        $.getJSON(
+            encodeURI(weatherUrl+'select woeid from geo.placefinder where text="'+options.location+'" and gflags="R" limit 1'),
+          function(data) {
+            console.log(data.query.results.Result.woeid);
+            options.woeid = data.query.results.Result.woeid;
         weatherUrl += 'select * from weather.forecast where woeid='+options.woeid+' and u="'+options.unit+'"';
+            getWeatherUrl();
+          });
+      }
+      else if(options.woeid !== '') {
+        weatherUrl += 'select * from weather.forecast where woeid='+options.woeid+' and u="'+options.unit+'"';
+        getWeatherUrl();
       } else {
         options.error({message: "Could not retrieve weather due to an invalid location."});
         return false;
       }
 
+
+      function getWeatherUrl() {
       $.getJSON(
         encodeURI(weatherUrl),
         function(data) {
@@ -60,7 +71,15 @@
             weather.country = result.location.country;
             weather.region = result.location.region;
             weather.updated = result.item.pubDate;
-            weather.link = result.item.link;
+
+                // Yahoo returns broken links. We can however construct the correct link.
+                // Example: https://weather.yahoo.com/united-states/wyoming/moran-2453911/
+                var link_country = result.location.country.replace(/\s+/g, '-').toLowerCase();
+                var link_region = result.location.region.replace(/\s+/g, '-').toLowerCase();
+                var link_city = result.location.city.replace(/\s+/g, '-').toLowerCase();
+                var link = "https://weather.yahoo.com/" + link_country + '/' + link_region + '/' + link_city + '-' + options.woeid + '/';
+
+                weather.link = link;
             weather.units = {temp: result.units.temperature, distance: result.units.distance, pressure: result.units.pressure, speed: result.units.speed};
             weather.wind = {chill: result.wind.chill, direction: compass[Math.round(result.wind.direction / 22.5)], speed: result.wind.speed};
 
@@ -107,6 +126,9 @@
           }
         }
       );
+      }
+
+
       return this;
     }
   });
