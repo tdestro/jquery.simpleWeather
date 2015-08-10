@@ -10,6 +10,14 @@
     }
   }
 
+  function getParameterByName(name,url) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(url);
+    return results === null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+  }
+
+
   $.extend({
     simpleWeather: function(options){
       options = $.extend({
@@ -60,7 +68,27 @@
             weather.country = result.location.country;
             weather.region = result.location.region;
             weather.updated = result.item.pubDate;
-            weather.link = result.item.link;
+
+            // Yahoo returns broken links. We can however construct the correct link.
+            // Example: https://weather.yahoo.com/united-states/wyoming/moran-2453911/
+            // Obtain woeid.
+            var link_country = result.location.country.replace(/\s+/g,'-').toLowerCase();
+            var link_region = result.location.region.replace(/\s+/g,'-').toLowerCase();
+            var link_city = result.location.city.replace(/\s+/g,'-').toLowerCase();
+            var link = "https://weather.yahoo.com/" + link_country + '/' + link_region + '/' + link_city + '-';
+            var woe = "";
+            for (var url_itterator in data.query.diagnostics.url ){
+
+              if (data.query.diagnostics.url[url_itterator].content.substr(0, 40) == "http://weather.yahooapis.com/forecastrss"){
+                console.log('in');
+                woe = getParameterByName('w',data.query.diagnostics.url[url_itterator].content);
+                console.log(woe);
+                break;
+              }
+            }
+            link += woe + "/";
+
+            weather.link = link;
             weather.units = {temp: result.units.temperature, distance: result.units.distance, pressure: result.units.pressure, speed: result.units.speed};
             weather.wind = {chill: result.wind.chill, direction: compass[Math.round(result.wind.direction / 22.5)], speed: result.wind.speed};
 
